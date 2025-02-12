@@ -1,0 +1,32 @@
+{
+    "behavior_packs": {
+        "blocks": {},
+        "entities": {},
+        "items": {},
+        "loot_tables": {},
+        "manifest.json": "file"
+    },
+    "resource_packs": {
+        "animation_controllers": {},
+        "animations": {},
+        "entity": {},
+        "models": {
+            "blocks": {},
+            "entity": {},
+            "items": {}
+        },
+        "render_controllers": {},
+        "texts": {},
+        "textures": {
+            "blocks": {},
+            "entity": {},
+            "items": {},
+            "item_texture.json": "file",
+            "terrain_texture.json": "file"
+        },
+        "manifest.json": "file"
+    },
+    "scripts": {
+        "main.ts": "file"
+    }
+}
