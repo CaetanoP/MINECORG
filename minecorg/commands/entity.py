@@ -69,7 +69,7 @@ def create():
 
 def entity_behavior_pack(entity: e.Entity):
     entity_behavior_pack = Path(
-        f"{project.PROJECT_DIRECTORY}/behavior_packs/entities/{entity.name}.entity.json"
+        f"{project.PROJECT_DIRECTORY}/behavior_packs/entities/{entity.name}.json"
     )
 
     # import data
