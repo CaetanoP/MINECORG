@@ -13,8 +13,10 @@ def get_mod_info():
             data = json.load(f)
             mod_name = data.get("mod_name")
             namespace = data.get("namespace")
-    except:
-        return "", ""
+            return mod_name, namespace  # Return the values as a tuple
+    except (FileNotFoundError, json.JSONDecodeError):
+        a = " "
+        return a, a
 
 # Usage
 MOD_NAME, NAMESPACE = get_mod_info()

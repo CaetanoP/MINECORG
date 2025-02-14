@@ -1,0 +1,15 @@
+{
+    "format_version": "1.21.50",
+    "minecraft:entity": {
+        "description": {
+            "identifier": "namespace:entity_name",
+            "is_spawnable": true,
+            "is_summonable": true,
+            "is_experimental": false,
+            "spawn_category": "monster"
+        },
+        "components": {},
+        "component_groups": {},
+        "events": {}
+    }
+}

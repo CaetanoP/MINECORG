@@ -1,0 +1,32 @@
+{
+    "format_version": "1.8.0",
+    "minecraft:client_entity": {
+        "description": {
+            "identifier": "namespace:entity_name",
+            "materials": {
+                "default": "entity_alphatest"
+            },
+            "textures": {
+                "default": "textures/entity/entity_name"
+            },
+            "geometry": {
+                "default": "geometry.entity_name"
+            },
+            "animations": {
+                "idle": "animation.entity_name.idle"
+            },
+            "animation_controllers": [
+                {
+                    "general": "controller.animation.entity_name.general"
+                }
+            ],
+            "render_controllers": [
+                "controller.render.entity_name"
+            ],
+            "spawn_egg": {
+                "base_color": "#505152",
+                "overlay_color": "#3b9dff"
+            }
+        }
+    }
+}

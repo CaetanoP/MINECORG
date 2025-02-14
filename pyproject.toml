@@ -9,6 +9,7 @@ packages = [{include = "minecorg"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 click = "^8.1.8"
+rich = "^13.9.4"
 
 
 [build-system]
