@@ -4,7 +4,8 @@ version = "0.1.0"
 description = ""
 authors = ["Caetano Passos"]
 readme = "README.md"
-packages = [{include = "minecorg"}]
+packages = [{include = "minecorg"},
+{ include = "minecorg/templates", format = "sdist" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -18,3 +19,9 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 minecorg = "minecorg.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["minecorg"]
+
+[tool.setuptools.package-data]
+minecorg = ["templates/*"]

@@ -20,12 +20,14 @@ def new()->None:
 
 @click.group()
 def list()->None:
+    """
+    List entities, blocks and items in the project
+    """
     ...
 
 #cli Group
 cli.add_command(scan.scan)
 cli.add_command(project.init,"init")
-cli.add_command(project.load)
 cli.add_command(list,"list")
 cli.add_command(new)
 

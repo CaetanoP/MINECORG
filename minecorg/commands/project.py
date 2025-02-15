@@ -4,8 +4,11 @@ import json
 from pathlib import Path
 import shutil
 from ..utils import file_utils
+from ..templates import script_template
+from ..utils import json_handler
 
 PROJECT_DIRECTORY: str = os.getcwd()
+
 
 def get_mod_info():
     try:
@@ -18,26 +21,28 @@ def get_mod_info():
         a = " "
         return a, a
 
+
 # Usage
 MOD_NAME, NAMESPACE = get_mod_info()
 
-#Help Functions
+
+# Help Functions
 def create_folder_structure(base_structure, target_path, variables):
     """
     Recursively creates a folder and file structure based on a given template.
     Args:
         base_structure (dict): A dictionary representing the folder and file structure.
-                               Keys are folder or file names, and values are either "file" 
+                               Keys are folder or file names, and values are either "file"
                                or another dictionary representing subfolders and files.
         target_path (Path): The base path where the folder structure will be created.
         variables (dict): A dictionary of variables to replace placeholders in folder and file names.
     """
-    
+
     for name, content in base_structure.items():
         # Replace placeholders in names
         formatted_name = name.format(**variables)
         new_path = target_path / formatted_name
-        
+
         if content == "file":
             new_path.touch()
             click.echo(f"Created file: {new_path}")
@@ -46,14 +51,14 @@ def create_folder_structure(base_structure, target_path, variables):
             click.echo(f"Created directory: {new_path}")
             create_folder_structure(content, new_path, variables)
 
-#Commands
+
+# Commands
 @click.command()
-@click.option("--path", prompt="Project root path", type=click.Path(file_okay=False))
-def init(path):
+def init():
     """
     Initializes a new Minecraft mod project at the specified path.
     This function collects metadata from the user, creates the root project directory,
-    loads a folder structure template, creates the folder structure, and saves the 
+    loads a folder structure template, creates the folder structure, and saves the
     metadata to a JSON file.
     Args:
         path (str): The path where the project should be initialized.
@@ -65,62 +70,37 @@ def init(path):
         - The folder structure is defined in a JSON template file.
         - Metadata is stored in a 'metadata.json' file within the project root directory.
     """
-    #Preciso melhorar essa função verificando se existe alguma coisa na pasta de criação e perguntando para o usuario
-    # se ele realmente quer iniciar um projeto com algo na pasta
-    # preciso também tirar a opção de iniciar em um path especifico, tudo sera realizado dentro do
-    # diretório atual
-    
     # Collect metadata
-    metadata = {
-        "project_name": click.prompt("Project name"),
-        "mod_name": click.prompt("Mod name"),
-        "namespace": click.prompt("Namespace (e.g., com.yourname)")
-    }
-    
+    metadata = create_metadata()
+
     # Create root project directory
-    project_root = Path(os.getcwd()) / metadata["project_name"]
+    project_root = Path(os.getcwd()) / metadata["project"]["name"]
     project_root.mkdir(parents=True, exist_ok=True)
-    
+
+    # Save metadata
+    metadata_path = Path(os.getcwd())/metadata["project"]["name"]  / "minecorg.json"
+    with open(metadata_path, "w") as f:
+        json.dump(metadata, f, indent=2)
     # Load folder structure template
-    structure_template = file_utils.load_template_file("folder_structure.json")
+    structure_template = json_handler.import_data_from_json_file_template("folder_structure.json")
+    structure_template = json_handler.rename_key_from_json_data(structure_template,"mod_name",metadata["mod"]["name"])
+    
     # Create folder structure
     create_folder_structure(structure_template, project_root, metadata)
-    # Save metadata
-    metadata_path = project_root / "minecorg.json"
-    with open(metadata_path, "w") as f:
-        json.dump(metadata, f, indent=2)
-        
-    click.echo(f"\nProject created successfully at {project_root}",color="green")
-    click.echo(f"Metadata stored in {metadata_path}")
-    
+    # Create scripts
+    generate_just_config(metadata["project"]["name"])
+    # Create env.
+    create_env(metadata["project"]["name"])
+    # Create package.json
+    generate_package(metadata["project"]["name"])
+    # Generate tfconfig
+    generate_tf_config(metadata["project"]["name"])
 
-@click.command()
-def load():
-    """
-    This command collects metadata from the user and creates a 'minecorg.json' file in the current working directory.
-    The metadata includes the project name, mod name, and namespace. This file can be used to store and manage 
-    project-specific information for a Minecraft mod project.
-    """  
-    #Preciso melhorar essa função ela precisa scanear o folder mostrar oq esta faltando e perguntar ao
-    # usuario se deseja continuar assim mesmo ou adicionar as pastas que faltam, depois ele ira procurar no
-    # projeto alguma maneira de descobrir o namespace utilizado, nome do mod e namespace
-    # Collect metadata
-    metadata = {
-        "project_name": click.prompt("Project name"),
-        "mod_name": click.prompt("Mod name"),
-        "namespace": click.prompt("Namespace (e.g., com.yourname)")
-    }
-    
-    # Save metadata
-    metadata_path = Path(os.getcwd()) / "minecorg.json"
-    with open(metadata_path, "w") as f:
-        json.dump(metadata, f, indent=2)
-        
-    click.echo(f"\nMetadata stored in {metadata_path}")
-    
-    
+    generate_eslint_config(metadata["project"]["name"])
+    click.echo(f"\nProject created successfully at {project_root}", color="green")
 
-def list(model:bool,texture:bool,object:str):
+
+def list(model: bool, texture: bool, object: str):
     files = []
     packs = []
     if model:
@@ -129,122 +109,166 @@ def list(model:bool,texture:bool,object:str):
     if texture:
         files.append("textures")
         packs.append("resource_packs")
-        
-        
+
     for i in range(len(files)):
         try:
             dir = Path(PROJECT_DIRECTORY) / packs[i] / str(MOD_NAME) / files[i] / object
-            click.echo(click.style(f"\nScanning {files[i]} for {object} in {packs[i]}...", fg="yellow", bold=True))
-            
+            click.echo(
+                click.style(
+                    f"\nScanning {files[i]} for {object} in {packs[i]}...",
+                    fg="yellow",
+                    bold=True,
+                )
+            )
+
             files_dir = file_utils.find_files(dir)
-            
+
             if not files:
-                click.echo(click.style(f"\nWhoops! No {object} found in the workshop!", fg="red"))
+                click.echo(
+                    click.style(
+                        f"\nWhoops! No {object} found in the workshop!", fg="red"
+                    )
+                )
                 return
 
             # Header
-            click.echo("\n" + click.style("Available "+files[i]+" ({}):".format(len(files_dir)), 
-            fg="cyan", bold=True, underline=True))
-            
+            click.echo(
+                "\n"
+                + click.style(
+                    "Available " + files[i] + " ({}):".format(len(files_dir)),
+                    fg="cyan",
+                    bold=True,
+                    underline=True,
+                )
+            )
+
             # List entities with Minecraft-style formatting
             for idx, file in enumerate(files_dir, 1):
                 file_path = Path(file)
-                file_name = file_path.stem.replace('_', ' ').title()
+                file_name = file_path.stem.replace("_", " ").title()
                 click.echo(
-                    click.style(f"#{idx} ", fg="magenta") + 
-                    click.style(file_name, fg="bright_green", bold=True) + 
-                    click.style(f" [ {file_path.name} ]", fg="white")
+                    click.style(f"#{idx} ", fg="magenta")
+                    + click.style(file_name, fg="bright_green", bold=True)
+                    + click.style(f" [ {file_path.name} ]", fg="white")
                 )
 
             # Footer
-            click.echo("\n" + click.style("Found ", fg="bright_white") + 
-            click.style(str(len(files)), fg="yellow", bold=True) + 
-            click.style(" awesome entities ready for action!", fg="bright_white"))
-
-        except FileNotFoundError:
-            click.echo(click.style("\nAlert! Entity workshop directory missing!", fg="red", bold=True))
-            click.echo(click.style("Did you forget to build the castle first?", fg="yellow"))
-        except Exception as e:
-            click.echo(click.style(f"\nCritical Crash! {str(e)}", fg="red", bold=True))
-            click.echo(click.style("Quick! Call the Minecraft engineers!", fg="bright_red"))
-    
-
-    
-    
-    
-@click.command()
-@click.option('-m','--model', is_flag=True)
-@click.option('-t','--texture',is_flag = True)
-def listEntity(model:bool,texture:bool):
-    list(model=model,texture=texture,object="entity")
-    ...
-    
-    
-@click.command()
-@click.option('-m','--model', is_flag=True)
-@click.option('-t','--texture',is_flag = True)
-def listBlock(model : bool, texture:bool ):
-    list(model=model,texture=texture,object="blocks")
-    ...
-       
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-@click.command()
-@click.option('--entity', is_flag=True)
-@click.option('--block',is_flag=True)
-def listawd(entity :bool,):
-    """
-    --entity list bp/entities
-    --entity -m list rp/models/entity
-    --entity -t list rp/textures/entity
-    --block list bp/blocks
-    --block -m list rp/models/blocks
-    """
-    
-    
-    
-    try:
-        entities_dir = Path(PROJECT_DIRECTORY) / "behavior_packs" / str(MOD_NAME) / "entities"
-        click.echo(click.style("Scanning entity vault...", fg="yellow", bold=True))
-        
-        files = file_utils.find_files(entities_dir)
-        
-        if not files:
-            click.echo(click.style("\nWhoops! No entities found in the workshop!", fg="red"))
-            return
-
-        # Header
-        click.echo("\n" + click.style("Available Entities ({}):".format(len(files)), 
-        fg="cyan", bold=True, underline=True))
-        
-        # List entities with Minecraft-style formatting
-        for idx, file in enumerate(files, 1):
-            file_path = Path(file)
-            file_name = file_path.stem.replace('_', ' ').title()
             click.echo(
-                click.style(f"#{idx} ", fg="magenta") + 
-                click.style(file_name, fg="bright_green", bold=True) + 
-                click.style(f" [ {file_path.name} ]", fg="white")
+                "\n"
+                + click.style("Found ", fg="bright_white")
+                + click.style(str(len(files)), fg="yellow", bold=True)
+                + click.style(" awesome entities ready for action!", fg="bright_white")
             )
 
-        # Footer
-        click.echo("\n" + click.style("Found ", fg="bright_white") + 
-        click.style(str(len(files)), fg="yellow", bold=True) + 
-        click.style(" awesome entities ready for action!", fg="bright_white"))
+        except FileNotFoundError:
+            click.echo(
+                click.style(
+                    "\nAlert! Entity workshop directory missing!", fg="red", bold=True
+                )
+            )
+            click.echo(
+                click.style("Did you forget to build the castle first?", fg="yellow")
+            )
+        except Exception as e:
+            click.echo(click.style(f"\nCritical Crash! {str(e)}", fg="red", bold=True))
+            click.echo(
+                click.style("Quick! Call the Minecraft engineers!", fg="bright_red")
+            )
 
-    except FileNotFoundError:
-        click.echo(click.style("\nAlert! Entity workshop directory missing!", fg="red", bold=True))
-        click.echo(click.style("Did you forget to build the castle first?", fg="yellow"))
-    except Exception as e:
-        click.echo(click.style(f"\nCritical Crash! {str(e)}", fg="red", bold=True))
-        click.echo(click.style("Quick! Call the Minecraft engineers!", fg="bright_red"))
+
+@click.command()
+@click.option("-m", "--model", is_flag=True)
+@click.option("-t", "--texture", is_flag=True)
+def listEntity(model: bool, texture: bool):
+    list(model=model, texture=texture, object="entity")
+    ...
+
+
+@click.command()
+@click.option("-m", "--model", is_flag=True)
+@click.option("-t", "--texture", is_flag=True)
+def listBlock(model: bool, texture: bool):
+    list(model=model, texture=texture, object="blocks")
+    ...
+
+
+def create_metadata():
+    """Generate minecorg.json file"""
+    
+    base_dir = os.getcwd()
+    namespace = str(click.prompt("Namespace (e.g., com.yourname)"))
+    project_name = str(click.prompt("Project name"))
+    metadata = {
+        "project": {
+            "name":  project_name,
+            "description": click.prompt("Project description"),
+        },
+        "directories": {
+            "entity_behavior_folder": str(
+                Path(base_dir)/  project_name / "behavior_packs" / namespace / "entities"
+            ),
+            "entity_resource_folder": str(
+                Path(base_dir) / project_name / "resource_packs" / namespace / "entity"
+            ),
+            "entity_render_controller_folder": str(
+                Path(base_dir) /  project_name /"resource_packs" / namespace / "render_controllers"
+            ),
+            "entity_model_folder": str(
+                Path(base_dir) /  project_name /"resource_packs" / namespace / "models" / "entity"
+            ),
+            "entity_texture_folder": str(
+                Path(base_dir) / project_name /"resource_packs" / namespace / "textures" / "entity"
+            ),
+        },
+        "mod": {"name": click.prompt("Mod name"), "namespace": namespace},
+    }
+
+
+
+    return metadata
+
+
+def create_env(project_name: str):
+    """Generate .env file"""
+    env_content = (
+        f'PROJECT_NAME="{project_name}"\n'
+        'MINECRAFT_PRODUCT="BedrockUWP"\n'
+        'CUSTOM_DEPLOYMENT_PATH=""\n'
+    )
+    env_path = Path(f"{project_name}/.env")
+    env_path.write_text(env_content)
+    click.echo(f"Created {env_path}")
+    ...
+
+
+def generate_package(project_name:str):
+    package = json_handler.import_data_from_json_file_template("package.json")
+    package_path = Path(os.getcwd())/ project_name / "package.json"
+    with open(package_path, "w") as f:
+        json.dump(package, f, indent=2)
+    click.echo(f"Created {package_path}")
+
+
+def generate_just_config(project_name):
+    """Generate just.config.ts file."""
+    content = script_template.JUST_CONFIG_TEMPLATE.format(project_name=project_name)
+    output_file = Path(f"{project_name}/just.config.ts")
+    output_file.write_text(content)
+    click.echo(f"Created {output_file}")
+
+
+def generate_eslint_config(project_name):
+    content = script_template.ESLINT_CONFIG_TEMPLATE
+    output_file = Path(f"{project_name}/eslint.config.mjs")
+    output_file.write_text(content)
+    click.echo(f"Created {output_file}")
+
+
+def generate_tf_config(project_name):
+    content = script_template.TS_CONFIG_TEMPLATE
+    output_file = Path(f"{project_name}/tsconfig.json")
+    output_file.write_text(content)
+    click.echo(f"Created {output_file}")
+
+    
+    
