@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-
+from importlib import resources
 
 def rename_values_from_json_data(data: dict | list, old_values: list, new_values: list):
     """
@@ -54,19 +54,28 @@ def import_data_from_json_file_template(file_name: str) -> dict:
         FileNotFoundError: If the specified file does not exist.
         json.JSONDecodeError: If there is an error decoding the JSON content.
     """
-
-    template_path = os.path.join(Path(__file__).parent.parent, "templates", file_name)
+    # template_path = os.path.join(Path(__file__).parent.parent, "templates", file_name)
+    # try:
+    #     with open(template_path, "r") as file:
+    #         return json.load(file)
+    # except FileNotFoundError:
+    #     print(f"File {file_name} not found at {template_path}")
+    #     return {}
+    # except json.JSONDecodeError:
+    #     print(f"Error decoding JSON from file {file_name}")
+    #     return {}
+    # return {}
+    # ...
     try:
-        with open(template_path, "r") as file:
+        # Use importlib.resources to access the template file
+        with resources.files("minecorg.templates").joinpath(file_name).open("r", encoding="utf-8") as file:
             return json.load(file)
     except FileNotFoundError:
-        print(f"File {file_name} not found at {template_path}")
+        print(f"File {file_name} not found in templates directory.")
         return {}
     except json.JSONDecodeError:
-        print(f"Error decoding JSON from file {file_name}")
+        print(f"Error decoding JSON from file {file_name}.")
         return {}
-    return {}
-    ...
 
 
 def rename_key_from_json_data(data, old_key, new_key):
